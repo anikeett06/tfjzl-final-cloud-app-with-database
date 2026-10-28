@@ -2,10 +2,29 @@ from django.db import models
 from django.contrib.auth.models import User
 
 
+class Instructor(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    full_time = models.BooleanField(default=True)
+    total_learners = models.IntegerField(default=0)
+
+    def __str__(self):
+        return self.user.username
+
+
+class Learner(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    occupation = models.CharField(max_length=200, blank=True)
+    social_link = models.URLField(blank=True)
+
+    def __str__(self):
+        return self.user.username
+
+
 class Course(models.Model):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     image_url = models.URLField(blank=True)
+    instructors = models.ManyToManyField(Instructor, related_name="courses", blank=True)
 
     def __str__(self):
         return self.name
@@ -13,23 +32,24 @@ class Course(models.Model):
 
 class Lesson(models.Model):
     title = models.CharField(max_length=200)
-    course = models.ForeignKey(
-        Course,
-        on_delete=models.CASCADE,
-        related_name="lessons"
-    )
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="lessons")
     content = models.TextField(blank=True)
 
     def __str__(self):
         return self.title
 
 
+class Enrollment(models.Model):
+    learner = models.ForeignKey(Learner, on_delete=models.CASCADE, related_name="enrollments")
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="enrollments")
+    date_enrolled = models.DateField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.learner} - {self.course}"
+
+
 class Question(models.Model):
-    course = models.ForeignKey(
-        Course,
-        on_delete=models.CASCADE,
-        related_name="questions"
-    )
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="questions")
     question_text = models.CharField(max_length=500)
     grade = models.IntegerField(default=1)
 
@@ -38,11 +58,7 @@ class Question(models.Model):
 
 
 class Choice(models.Model):
-    question = models.ForeignKey(
-        Question,
-        on_delete=models.CASCADE,
-        related_name="choices"
-    )
+    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name="choices")
     choice_text = models.CharField(max_length=300)
     is_correct = models.BooleanField(default=False)
 
@@ -51,16 +67,9 @@ class Choice(models.Model):
 
 
 class Submission(models.Model):
-    user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE
-    )
-    course = models.ForeignKey(
-        Course,
-        on_delete=models.CASCADE
-    )
-    total_score = models.IntegerField(default=0)
+    enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE, related_name="submissions")
+    choices = models.ManyToManyField(Choice, related_name="submissions")
     submitted_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.user.username} - {self.course.name}"
+        return f"Submission: {self.enrollment}"
